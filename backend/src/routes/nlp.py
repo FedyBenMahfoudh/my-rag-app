@@ -1,11 +1,12 @@
 from fastapi import FastAPI, APIRouter, status, Request,Depends
 from fastapi.responses import JSONResponse,StreamingResponse
-from routes.schemes.nlp import PushRequest, SearchRequest
-from models import ConversationModel,ChunkModel,CurrentUser
+from routes.schemes.nlp import PushRequest, SearchRequest,PushMessageRequest
+from models import ConversationModel,ChunkModel,CurrentUser,MessageModel
 from controllers import NLPController
 from models import ResponseSignal
 from guard.authGuard import guard
 from helpers.config import get_settings, Settings
+from helpers.serialise import Serializer
 import json
 import logging
 
@@ -254,3 +255,73 @@ async def answer_rag(
         for token in answer:
             yield token
     return StreamingResponse(token_stream(), media_type="text/plain")
+
+
+@nlp_router.post("/index/message/{conversation_id}")
+async def index_message(
+    request: Request,
+    conversation_id: str,
+    push_message_request: PushMessageRequest,
+    user: CurrentUser = Depends(guard)
+):
+    
+    conversation_model = await ConversationModel.create_instance(
+        db_client=request.app.db_client
+    )
+
+    conversation = await conversation_model.get_conversation_or_create_one(
+        conversation_id=conversation_id,
+        user_id=user.id
+    )
+
+    message_model = await MessageModel.create_instance(
+        db_client=request.app.db_client
+    )
+
+    if not conversation:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.CONVERSATION_NOT_FOUND_ERROR.value
+            }
+        )
+
+    new_message = await message_model.create_message(
+        content=push_message_request.content,
+        role=push_message_request.role,
+        conversation_id=conversation.id
+    )
+    logger.info(f"New message created: {new_message}")
+    if not new_message:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.MESSAGE_CREATED_ERROR.value
+            }
+        )
+
+    return JSONResponse(
+        content={
+            "signal": ResponseSignal.MESSAGE_CREATED_SUCCESS.value,
+            "message": Serializer.serialise(new_message)
+        }
+    )
+
+@nlp_router.get("/index/messages/{conversation_id}")
+async def get_messages(
+    request: Request,
+    conversation_id: str,
+    user: CurrentUser = Depends(guard)
+):
+    message_model = await MessageModel.create_instance(
+        db_client=request.app.db_client
+    )
+
+    messages = await message_model.get_messages_by_conversation_id(conversation_id=conversation_id)
+    logger.info(f"Retrieved messages: {messages}")
+    return JSONResponse(
+        content={
+            "signal": ResponseSignal.MESSAGE_RETRIEVED_SUCCESS.value,
+            "messages": [Serializer.serialise(message.dict()) for message in messages]
+        }
+    )

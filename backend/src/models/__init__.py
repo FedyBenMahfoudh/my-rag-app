@@ -6,3 +6,4 @@ from .BaseDataModel import BaseDataModel
 from .ChunkModel import ChunkModel
 from .ConversationModel import ConversationModel
 from .UserModel import CurrentUser
+from .MessageModel import MessageModel

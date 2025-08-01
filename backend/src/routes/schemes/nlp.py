@@ -8,3 +8,8 @@ class SearchRequest(BaseModel):
     text: str
     limit: Optional[int] = 5
     chat_history: list[object] = []  # list of {"content": ..., "role": ...}
+
+
+class PushMessageRequest(BaseModel):
+    content: str
+    role: str  # Assuming role is a string, adjust as necessary
