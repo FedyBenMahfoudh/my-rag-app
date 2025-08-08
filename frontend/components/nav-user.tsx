@@ -20,8 +20,17 @@ import {
 import { CurrentUserAvatar } from "./current-user-avatar";
 import { useCurrentUserName } from "@/hooks/use-current-user-name";
 import { User } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/client";
 
 export function NavUser({ user }: { user: User }) {
+  const router = useRouter();
+
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/auth/login");
+  };
   const { isMobile } = useSidebar();
   return (
     <SidebarMenu>
@@ -68,7 +77,7 @@ export function NavUser({ user }: { user: User }) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={logout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

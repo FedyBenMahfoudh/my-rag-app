@@ -23,7 +23,7 @@ import { Icons } from "./icons";
 import { siteConfig } from "@/constants/site";
 
 export function TeamSwitcher() {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenu>
